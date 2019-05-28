@@ -2,5 +2,5 @@
   "port": "8888",
   "storage_name": "storage",
   "url_pattern": "/c",
-  "period": 10
+  "period": 60
 }
