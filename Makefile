@@ -7,3 +7,8 @@ run:
 build-linux:
 	$(info #Building)
 	cd cmd && env GOOS=linux go build -o ../bin/counter
+
+.PHONY: test
+test:
+	$(info #Run tests...)
+	go test -v ./internal/... ./cmd/...

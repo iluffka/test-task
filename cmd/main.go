@@ -26,10 +26,11 @@ var (
 
 func init() {
 	//в зависимости от контура выбираем файл конфига
-	cfgFileName := flag.String("env", "development.json", "config file name")
+	envType := flag.String("env", config.EnvDev, "config file name")
+	cfgFileName := config.SetEnv(*envType)
 	flag.Parse()
 
-	cfg = config.New(config.ConfigPath, *cfgFileName)
+	cfg = config.New(config.ConfigPath, cfgFileName)
 	cfg.Load()
 
 	//проверяем при старте наличие истории запросов
@@ -62,7 +63,7 @@ func HTTPServe(w http.ResponseWriter, _ *http.Request) {
 	node := counter.Node{
 		Time: time.Now().Unix(),
 	}
-	cutOff := node.Time - 10
+	cutOff := node.Time - cfg.Period
 	nodes = append(nodes, node)
 	from := counter.Counter(nodes, cutOff)
 	nodes = nodes[from:]

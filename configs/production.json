@@ -1,5 +1,6 @@
 {
   "port": "8888",
-  "storage_name": "./storage/storage",
-  "url_pattern": "/c"
+  "storage_name": "storage",
+  "url_pattern": "/c",
+  "period": 60
 }

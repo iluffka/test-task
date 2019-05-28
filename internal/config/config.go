@@ -18,6 +18,7 @@ type Config struct {
 	Start       time.Time `json:"start"`
 	StorageName string    `json:"storage_name"`
 	URLPattern  string    `json:"url_pattern"`
+	Period      int64     `json:"period"`
 	path        string
 	file        string
 }
