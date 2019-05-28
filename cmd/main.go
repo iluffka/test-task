@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/gob"
-	"encoding/json"
-	"internal"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -15,38 +13,28 @@ import (
 	"strconv"
 	"syscall"
 	"time"
-)
 
-const (
-	configPath = "./config/"
-	defaultConfig = "development.yaml"
+	"github.com/iluffka/test-task/internal/app/counter"
+	"github.com/iluffka/test-task/internal/config"
 )
 
 var (
-	file *os.File
-	nodes []Node
-	cfg *config.Config
+	file  *os.File
+	nodes []counter.Node
+	cfg   *config.Config
 )
 
-type Node struct {
-	Time	int64
-}
-
-
-
-
-func init()  {
+func init() {
 	//в зависимости от контура выбираем файл конфига
-	cfgFileName := flag.String("c", "development.json", "config file name")
+	cfgFileName := flag.String("env", "development.json", "config file name")
 	flag.Parse()
 
-	//cfg = LoadConfig(configPath, cfgFileName)
-	cfg = New(configPath, cfgFileName)
+	cfg = config.New(config.ConfigPath, *cfgFileName)
 	cfg.Load()
-	fmt.Println("cfg: ...", cfg)
+
 	//проверяем при старте наличие истории запросов
 	if _, err := os.Stat(cfg.StorageName); !os.IsNotExist(err) {
-		var data []Node
+		var data []counter.Node
 		storage, err := ioutil.ReadFile(cfg.StorageName)
 		if err != nil {
 			log.Fatal(err)
@@ -62,20 +50,21 @@ func init()  {
 	}
 }
 
-func main()  {
-	http.HandleFunc(cfg.URLPattern, HTTPCounter)
-	Notify()
+func main() {
+	http.HandleFunc(cfg.URLPattern, HTTPServe)
+	shutdown()
 
+	log.Printf("запуск на порту %s", cfg.Port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", cfg.Port), nil))
 }
 
-func HTTPCounter(w http.ResponseWriter, _ *http.Request)  {
-	node := Node{
+func HTTPServe(w http.ResponseWriter, _ *http.Request) {
+	node := counter.Node{
 		Time: time.Now().Unix(),
 	}
 	cutOff := node.Time - 10
 	nodes = append(nodes, node)
-	from := Counter(nodes, cutOff)
+	from := counter.Counter(nodes, cutOff)
 	nodes = nodes[from:]
 	res := len(nodes)
 
@@ -84,22 +73,7 @@ func HTTPCounter(w http.ResponseWriter, _ *http.Request)  {
 	}
 }
 
-func Counter(nodes []Node, cutOff int64) int {
-	var from int
-
-	for i, n := range nodes {
-		if from == 0 {
-			if n.Time >= cutOff {
-				from = i
-				break
-			}
-		}
-	}
-
-	return from
-}
-
-func Notify()  {
+func shutdown() {
 	var err error
 	pid := os.Getpid()
 
@@ -111,12 +85,15 @@ func Notify()  {
 		syscall.SIGQUIT)
 	go func(pid int) {
 		select {
-		case _ = <-sigc:
-			//save file
+		case sig := <-sigc:
+			log.Printf("последний запуск приложения в %v", cfg.Start)
+			log.Printf("внешний вызов %s", sig.String())
+			log.Printf("история последних запросов %v", nodes)
+
 			var data bytes.Buffer
 			enc := gob.NewEncoder(&data)
 			if err := enc.Encode(nodes); err != nil {
-				fmt.Println("err: ...", err)
+				log.Println(err)
 			}
 			if _, err = os.Stat(cfg.StorageName); os.IsNotExist(err) {
 				file, err = os.Create(cfg.StorageName)

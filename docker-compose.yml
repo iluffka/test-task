@@ -1,11 +1,10 @@
 version: '3'
 
-
 services:
-  db:
-    image: postgres:10
+  testtask:
+    image: ipochuev/testtask:0.0.6
     ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      - "8888:8888"
+    command: ["development.json"]
+    volumes:
+      - ./:/bin

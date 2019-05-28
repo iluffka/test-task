@@ -1,4 +1,9 @@
-.PHONY: run-db
-run-db:
-	$(info #Run postgresql service and start migration)
-	docker-compose up -d && psql -U user -h localhost -f migration.sql
+.PHONY: run
+run:
+	$(info #App is running)
+	go run cmd/main.go -env=$(env)
+
+.PHONY: build-linux
+build-linux:
+	$(info #Building)
+	cd cmd && env GOOS=linux go build -o ../bin/counter
