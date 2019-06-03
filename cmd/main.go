@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"flag"
 	"fmt"
@@ -22,6 +23,7 @@ var (
 	file  *os.File
 	nodes []counter.Node
 	cfg   *config.Config
+	srv   *http.Server
 )
 
 func init() {
@@ -32,6 +34,8 @@ func init() {
 
 	cfg = config.New(config.ConfigPath, cfgFileName)
 	cfg.Load()
+
+	srv = &http.Server{Addr: cfg.Port}
 
 	//проверяем при старте наличие истории запросов
 	if _, err := os.Stat(cfg.StorageName); !os.IsNotExist(err) {
@@ -56,7 +60,7 @@ func main() {
 	shutdown()
 
 	log.Printf("запуск на порту %s", cfg.Port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", cfg.Port), nil))
+	log.Fatal(srv.ListenAndServe())
 }
 
 func HTTPServe(w http.ResponseWriter, _ *http.Request) {
@@ -76,7 +80,6 @@ func HTTPServe(w http.ResponseWriter, _ *http.Request) {
 
 func shutdown() {
 	var err error
-	pid := os.Getpid()
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
@@ -84,7 +87,7 @@ func shutdown() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	go func(pid int) {
+	go func() {
 		select {
 		case sig := <-sigc:
 			log.Printf("последний запуск приложения в %v", cfg.Start)
@@ -108,10 +111,10 @@ func shutdown() {
 					log.Println(err)
 				}
 			}()
-
-			if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+			log.Println("остановка сервиса")
+			if err := srv.Shutdown(context.Background()); err != nil {
 				log.Fatal(err)
 			}
 		}
-	}(pid)
+	}()
 }
